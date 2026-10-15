@@ -7,7 +7,7 @@ const { SocksClient } = require('socks');
 
 // ===== PROXY BEÁLLÍTÁSOK =====
 const PROXY = {
-  enabled: true,              // false → proxy kikapcsolása
+  enabled: false,              // false → proxy kikapcsolása
   host: '49.13.22.249',          // SOCKS proxy címe
   port: 10802,                 // SOCKS proxy portja (pl. 1080, 9050 Tor)
   type: 5,                    // 4 vagy 5 (SOCKS4 / SOCKS5)
