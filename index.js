@@ -1,5 +1,24 @@
 const mineflayer = require('mineflayer');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
+
+const server = http.createServer((req, res) => {
+  if (req.url === '/') {
+    fs.readFile(path.join(__dirname, 'public', 'index.html'), (err, data) => {
+      if (err) {
+        res.writeHead(500);
+        res.end('Hiba');
+      } else {
+        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.end(data);
+      }
+    });
+  } else {
+    res.writeHead(200);
+    res.end('Bot fut');
+  }
+});
 
 const bot = mineflayer.createBot({
   host: 'Mate1019.aternos.me',
