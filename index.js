@@ -9,11 +9,11 @@ const dns = require('dns');
 // ===== PROXY BEÁLLÍTÁSOK =====
 const PROXY = {
   enabled: false,
-  host: '199.102.45.168',
+  host: '66.11.124.160',
   port: 9002,
   type: 5,
-  userId: '8s3xagr0',
-  password: 'nMsCyokfDFBi'
+  userId: 'mvmxtlu1',
+  password: 'XJ2QCtP7jwwJ'
 };
 // =============================
 
