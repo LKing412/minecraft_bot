@@ -25,16 +25,14 @@ bot.on('chat', (username, message) => {
   console.log(`[CHAT] ${username}: ${message}`);
 });
 
-// Chat figyelése és a "chat" előtag kezelése
-bot.on('chat', (username, message) => {
-  console.log(`[CHAT] ${username}: ${message}`);
+// WebSocket kapcsolat kezelése
+io.on('connection', (socket) => {
+  console.log('Weboldal csatlakozott');
   
-  // Ha valaki azt írja: "chat Helló", a bot kiírja: "Helló"
-  if (message.startsWith('chat ')) {
-    const uzenet = message.slice(5);
+  socket.on('chat', (uzenet) => {
     bot.chat(uzenet);
-    console.log(`[BOT KÜLDTE] ${uzenet}`);
-  }
+    console.log(`[WEB] ${uzenet}`);
+  });
 });
 
 // Minden rendszerüzenet (pl. csatlakozás, kilépés)
