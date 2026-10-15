@@ -2,15 +2,27 @@ const mineflayer = require('mineflayer');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { Server } = require('socket.io');
 
+// Minecraft bot létrehozása
+const bot = mineflayer.createBot({
+  host: 'Mate1019.aternos.me',
+  port: 19275,
+  username: 'cipopucolo112',
+  auth: 'offline',
+  version: '1.21.9'
+});
+
+// Egyetlen HTTP szerver, ami a weboldalt és a socket.io-t is kiszolgálja
+const PORT = process.env.PORT || 3000;
 const server = http.createServer((req, res) => {
-  if (req.url === '/') {
+  if (req.url === '/' || req.url === '/index.html') {
     fs.readFile(path.join(__dirname, 'public', 'index.html'), (err, data) => {
       if (err) {
         res.writeHead(500);
-        res.end('Hiba');
+        res.end('Hiba a weboldal betöltésekor');
       } else {
-        res.writeHead(200, { 'Content-Type': 'text/html' });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(data);
       }
     });
@@ -20,29 +32,25 @@ const server = http.createServer((req, res) => {
   }
 });
 
-const bot = mineflayer.createBot({
-  host: 'Mate1019.aternos.me',
-  port: 19275,
-  username: 'cipopucolo112',
-  auth: 'offline',
-  version: '1.21.9'
-});
+// Socket.io csatlakoztatása UGYANAHHOZ a szerverhez
+const io = new Server(server);
 
-const PORT = process.env.PORT || 3000;
-http.createServer((req, res) => {
-  res.writeHead(200);
-  res.end('Bot fut');
-}).listen(PORT, () => {
+// A szerver indítása
+server.listen(PORT, () => {
   console.log(`HTTP szerver fut a ${PORT} porton`);
 });
 
-// Csatlakozás
+// Bot események
 bot.once('spawn', () => console.log('Bot csatlakozott a szerverhez!'));
-
-// Minden bejövő chat üzenet naplózása
 bot.on('chat', (username, message) => {
   console.log(`[CHAT] ${username}: ${message}`);
 });
+bot.on('message', (jsonMsg) => {
+  console.log(`[MSG] ${jsonMsg.toString()}`);
+});
+bot.on('error', (err) => console.log('Hiba:', err));
+bot.on('kicked', (reason) => console.log('Kirúgva:', reason));
+bot.on('end', () => console.log('Bot lecsatlakozott a szerverről.'));
 
 // WebSocket kapcsolat kezelése
 io.on('connection', (socket) => {
@@ -53,13 +61,3 @@ io.on('connection', (socket) => {
     console.log(`[WEB] ${uzenet}`);
   });
 });
-
-// Minden rendszerüzenet (pl. csatlakozás, kilépés)
-bot.on('message', (jsonMsg) => {
-  console.log(`[MSG] ${jsonMsg.toString()}`);
-});
-
-// Hibák
-bot.on('error', (err) => console.log('Hiba:', err));
-bot.on('kicked', (reason) => console.log('Kirúgva:', reason));
-bot.on('end', () => console.log('Bot lecsatlakozott a szerverről.'));
