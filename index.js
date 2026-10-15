@@ -6,13 +6,14 @@ const { Server } = require('socket.io');
 const { SocksClient } = require('socks');
 
 // ===== PROXY BEÁLLÍTÁSOK =====
+// Töltsd ki az IPRoyal vezérlőpultján kapott adatokkal!
 const PROXY = {
-  enabled: false,              // false → proxy kikapcsolása
-  host: '49.13.22.249',          // SOCKS proxy címe
-  port: 10802,                 // SOCKS proxy portja (pl. 1080, 9050 Tor)
-  type: 5,                    // 4 vagy 5 (SOCKS4 / SOCKS5)
-  userId: undefined,          // SOCKS5 esetén ha kell
-  password: undefined         // SOCKS5 esetén ha kell
+  enabled: true,                 // true → proxy használata
+  host: 'geo.iproyal.com',       // IPRoyal ISP proxy host (ellenőrizd a dashboardon!)
+  port: 12321,                   // IPRoyal ISP proxy SOCKS5 port (ellenőrizd!)
+  type: 5,                       // 5 = SOCKS5 (az ISP proxy általában SOCKS5-öt is támogat)
+  userId: 'IDE_A_FELHASZNALONEV',// IPRoyal felhasználónév
+  password: 'IDE_A_JELSZO'       // IPRoyal jelszó
 };
 // =============================
 
@@ -23,7 +24,7 @@ const MC_PORT = 19275;
 // Proxy kapcsolat létrehozása és a bot indítása
 function createBotWithProxy() {
   if (!PROXY.enabled) {
-    // Proxy nélkül
+    console.log('[PROXY] Kikapcsolva, közvetlen kapcsolódás...');
     return mineflayer.createBot({
       host: MC_HOST,
       port: MC_PORT,
@@ -34,28 +35,39 @@ function createBotWithProxy() {
     });
   }
 
-  // Proxy-val: először létrehozzuk a SOCKS kapcsolatot a Minecraft szerver felé
-  const socketPromise = SocksClient.createConnection({
-    proxy: {
-      host: PROXY.host,
-      port: PROXY.port,
-      type: PROXY.type,
-      userId: PROXY.userId,
-      password: PROXY.password
-    },
-    command: 'connect',
-    destination: {
-      host: MC_HOST,
-      port: MC_PORT
-    }
-  });
+  console.log(`[PROXY] Használat: ${PROXY.host}:${PROXY.port} (SOCKS${PROXY.type})`);
 
   return mineflayer.createBot({
     username: 'cipopucolo112',
     auth: 'offline',
     version: '1.21.9',
-    // A mineflayer átveszi ezt a socketet a proxy-n keresztül
-    connect: () => socketPromise.then(({ socket }) => socket)
+    viewDistance: 2,
+    // A mineflayer a connect visszahíváson keresztül várja a socketet
+    connect: (client) => {
+      SocksClient.createConnection({
+        proxy: {
+          host: PROXY.host,
+          port: PROXY.port,
+          type: PROXY.type,
+          userId: PROXY.userId,
+          password: PROXY.password
+        },
+        command: 'connect',
+        destination: {
+          host: MC_HOST,
+          port: MC_PORT
+        }
+      })
+        .then(({ socket }) => {
+          console.log('[PROXY] SOCKS kapcsolat létrejött, socket átadása a botnak.');
+          client.setSocket(socket);
+          client.emit('connect');
+        })
+        .catch((err) => {
+          console.error('[PROXY] Hiba a SOCKS kapcsolat létrehozásakor:', err.message);
+          // A bot így nem tud csatlakozni, de legalább nem néma a hiba
+        });
+    }
   });
 }
 
@@ -75,7 +87,7 @@ const server = http.createServer((req, res) => {
       }
     });
   } else {
-    res.writeHead(200);
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Bot fut');
   }
 });
@@ -84,14 +96,28 @@ const io = new Server(server);
 
 server.listen(PORT, () => {
   console.log(`HTTP szerver fut a ${PORT} porton`);
-  console.log(`Proxy: ${PROXY.enabled ? PROXY.host + ':' + PROXY.port + ' (SOCKS' + PROXY.type + ')' : 'kikapcsolva'}`);
+  console.log(
+    `Proxy: ${
+      PROXY.enabled
+        ? PROXY.host + ':' + PROXY.port + ' (SOCKS' + PROXY.type + ')'
+        : 'kikapcsolva'
+    }`
+  );
 });
 
-// Bot események
-bot.once('spawn', () => console.log('Bot csatlakozott a szerverhez!'));
-bot.on('error', (err) => console.log('Hiba:', err));
-bot.on('kicked', (reason) => console.log('Kirúgva:', reason));
-bot.on('end', () => console.log('Bot lecsatlakozott a szerverről.'));
+// ===== Bot események =====
+bot.once('spawn', () => console.log('[BOT] Csatlakozott a szerverhez!'));
+bot.on('error', (err) => console.log('[BOT HIBA]', err.message || err));
+bot.on('kicked', (reason) => {
+  let szoveg = reason;
+  try {
+    szoveg = typeof reason === 'string' ? reason : JSON.stringify(reason);
+  } catch (e) {
+    /* ignore */
+  }
+  console.log('[BOT KICK]', szoveg);
+});
+bot.on('end', (reason) => console.log('[BOT] Lecsatlakozott. Ok:', reason));
 
 bot.on('chat', (username, message) => {
   console.log(`[CHAT] ${username}: ${message}`);
@@ -101,13 +127,18 @@ bot.on('chat', (username, message) => {
 });
 
 bot.on('message', (jsonMsg) => {
-  console.log(`[MSG] ${jsonMsg.toString()}`);
+  // Csak akkor naplózzuk, ha a bot már spawnolt (különben sok "Connecting..." üzenet jön)
+  if (bot.entity) {
+    console.log(`[MSG] ${jsonMsg.toString()}`);
+  }
 });
 
+// ===== Socket.io események =====
 io.on('connection', (socket) => {
-  console.log('Weboldal csatlakozott');
+  console.log('[WEB] Weboldal csatlakozott');
 
   socket.on('chat', (uzenet) => {
+    if (typeof uzenet !== 'string' || !uzenet.trim()) return;
     bot.chat(uzenet);
     console.log(`[WEB-CHAT] ${uzenet}`);
   });
@@ -127,26 +158,32 @@ io.on('connection', (socket) => {
   });
 
   socket.on('info', () => {
-    if (!bot.entity) {
-      socket.emit('bot-info', { hiba: 'A bot még nem csatlakozott' });
+    if (!bot.entity || !bot.game) {
+      socket.emit('bot-info', { hiba: 'A bot még nem csatlakozott teljesen' });
       return;
     }
 
     const pos = bot.entity.position;
     const adatok = {
-      x: pos.x, y: pos.y, z: pos.z,
+      x: pos.x,
+      y: pos.y,
+      z: pos.z,
       yaw: bot.entity.yaw,
       pitch: bot.entity.pitch,
       health: bot.health,
       food: bot.food,
       gameMode: bot.game.gameMode,
       dimension: bot.game.dimension,
-      time: bot.time.timeOfDay,
+      time: bot.time ? bot.time.timeOfDay : null,
       rain: bot.isRaining,
       thunder: bot.thunderState > 0
     };
 
     console.log('[INFO]', adatok);
     socket.emit('bot-info', adatok);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('[WEB] Weboldal lecsatlakozott');
   });
 });
