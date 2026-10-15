@@ -6,8 +6,8 @@ const { Server } = require('socket.io');
 
 // Minecraft bot létrehozása
 const bot = mineflayer.createBot({
-  host: 'play.balkercraft.eu',
-  port: 25565,
+  host: 'Mate1019.aternos.me',
+  port: 19275,
   username: 'cipopucolo112',
   auth: 'offline',
   version: '1.21.9'
