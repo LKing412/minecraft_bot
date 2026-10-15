@@ -31,7 +31,9 @@ function createBotWithProxy() {
       username: 'cipopucolo112',
       auth: 'offline',
       version: '1.21.9',
-      viewDistance: 2
+      viewDistance: 2,
+      fakeHost: MC_HOST,
+        connect: (client) => { /* ... */ }
     });
   }
 
