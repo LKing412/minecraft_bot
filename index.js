@@ -51,7 +51,7 @@ async function createBotWithProxy() {
       port: target.port,
       username: 'cipopucolo112',
       auth: 'offline',
-      version: '1.21.9',
+      version: '1.21.4',
       viewDistance: 2,
       fakeHost: MC_HOST
     });
@@ -62,7 +62,7 @@ async function createBotWithProxy() {
   return mineflayer.createBot({
     username: 'cipopucolo112',
     auth: 'offline',
-    version: '1.21.9',
+    version: '1.21.4',
     viewDistance: 2,
     fakeHost: MC_HOST,  // <-- fontos: a szerver a helyes hostnevet lássa
     connect: (client) => {
