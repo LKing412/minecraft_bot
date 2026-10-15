@@ -9,11 +9,11 @@ const { SocksClient } = require('socks');
 // Töltsd ki az IPRoyal vezérlőpultján kapott adatokkal!
 const PROXY = {
   enabled: true,                 // true → proxy használata
-  host: 'geo.iproyal.com',       // IPRoyal ISP proxy host (ellenőrizd a dashboardon!)
-  port: 12321,                   // IPRoyal ISP proxy SOCKS5 port (ellenőrizd!)
+  host: '192.158.236.146',       // IPRoyal ISP proxy host (ellenőrizd a dashboardon!)
+  port: 9002,                   // IPRoyal ISP proxy SOCKS5 port (ellenőrizd!)
   type: 5,                       // 5 = SOCKS5 (az ISP proxy általában SOCKS5-öt is támogat)
-  userId: 'IDE_A_FELHASZNALONEV',// IPRoyal felhasználónév
-  password: 'IDE_A_JELSZO'       // IPRoyal jelszó
+  userId: '3lov9e9l',// IPRoyal felhasználónév
+  password: 'BBQ9l6inXbGI'       // IPRoyal jelszó
 };
 // =============================
 
