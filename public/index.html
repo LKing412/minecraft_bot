@@ -1,13 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="hu">
 <head>
   <meta charset="UTF-8">
-  <title>Bot vezérlő</title>
+  <title>Minecraft Bot vezérlő</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #000000;
+      color: #ffffff;
+    }
+    h1 { color: #00ff88; }
+    input {
+      width: 70%;
+      padding: 10px;
+      font-size: 16px;
+      background-color: #1a1a1a;
+      color: #ffffff;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      background-color: #00ff88;
+      color: #000000;
+      border: none;
+      border-radius: 4px;
+      margin: 4px;
+    }
+    button:hover { background-color: #00cc6a; }
+    #log {
+      margin-top: 20px;
+      padding: 15px;
+      background: #1a1a1a;
+      border-radius: 5px;
+      min-height: 200px;
+      font-family: monospace;
+      color: #cccccc;
+      border: 1px solid #333;
+    }
+    .sor { margin: 4px 0; }
+    .sajat { color: #00ff88; }
+    .hiba { color: #ff5555; }
+    .mozgas { background-color: #444; color: #fff; }
+    .mozgas:hover { background-color: #666; }
+  </style>
 </head>
 <body>
   <h1>Minecraft Bot vezérlő</h1>
-  <input type="text" id="uzenet" placeholder="Írd be: chat valami">
-  <button onclick="kuld()">Küldés</button>
+
+  <h3>Chat üzenet</h3>
+  <input type="text" id="uzenet" placeholder="Írd be az üzenetet...">
+  <button onclick="kuldChat()">Küldés</button>
+
+  <h3>Mozgatás</h3>
+  <button class="mozgas" onclick="mozgas('forward')">Előre</button>
+  <button class="mozgas" onclick="mozgas('back')">Hátra</button>
+  <button class="mozgas" onclick="mozgas('left')">Balra</button>
+  <button class="mozgas" onclick="mozgas('right')">Jobbra</button>
+  <button class="mozgas" onclick="mozgas('jump')">Ugrás</button>
+  <button class="mozgas" onclick="stopMozgas()">Stop</button>
+
+  <h3>Napló</h3>
   <div id="log"></div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -15,17 +73,40 @@
     const socket = io();
     const log = document.getElementById('log');
 
-    function kuld() {
+    function naplo(szoveg, osztaly) {
+      log.innerHTML += `<div class="sor ${osztaly || ''}">${szoveg}</div>`;
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function kuldChat() {
       const input = document.getElementById('uzenet');
       const szoveg = input.value.trim();
-      if (szoveg.startsWith('chat ')) {
-        socket.emit('chat', szoveg.slice(5));
-        log.innerHTML += `<p>[KÜLDTED] ${szoveg}</p>`;
+      if (szoveg) {
+        socket.emit('chat', szoveg);
+        naplo('[TE] ' + szoveg, 'sajat');
         input.value = '';
-      } else {
-        log.innerHTML += `<p style="color:red">A parancs "chat " előtaggal kezdődjön!</p>`;
       }
     }
+
+    function mozgas(irany) {
+      socket.emit('move', irany);
+      naplo('[MOZGÁS] ' + irany);
+    }
+
+    function stopMozgas() {
+      socket.emit('stop');
+      naplo('[MOZGÁS] stop');
+    }
+
+    // A bot üzeneteinek megjelenítése
+    socket.on('bot-uzenet', (szoveg) => {
+      naplo('[BOT] ' + szoveg);
+    });
+
+    // Enter lenyomására küldjön
+    document.getElementById('uzenet').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') kuldChat();
+    });
   </script>
 </body>
 </html>
