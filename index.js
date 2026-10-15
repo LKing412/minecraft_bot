@@ -4,16 +4,16 @@ const fs = require('fs');
 const path = require('path');
 const { Server } = require('socket.io');
 const { SocksClient } = require('socks');
+const dns = require('dns');
 
 // ===== PROXY BEÁLLÍTÁSOK =====
-// Töltsd ki az IPRoyal vezérlőpultján kapott adatokkal!
 const PROXY = {
-  enabled: true,                 // true → proxy használata
-  host: '199.102.45.168',       // IPRoyal ISP proxy host (ellenőrizd a dashboardon!)
-  port: 9002,                   // IPRoyal ISP proxy SOCKS5 port (ellenőrizd!)
-  type: 5,                       // 5 = SOCKS5 (az ISP proxy általában SOCKS5-öt is támogat)
-  userId: '8s3xagr0',// IPRoyal felhasználónév
-  password: 'nMsCyokfDFBi'       // IPRoyal jelszó
+  enabled: true,
+  host: '199.102.45.168',
+  port: 9002,
+  type: 5,
+  userId: '8s3xagr0',
+  password: 'nMsCyokfDFBi'
 };
 // =============================
 
@@ -21,19 +21,39 @@ const PROXY = {
 const MC_HOST = 'Mate1019.aternos.me';
 const MC_PORT = 19275;
 
-// Proxy kapcsolat létrehozása és a bot indítása
-function createBotWithProxy() {
+// SRV rekord feloldása
+function resolveSRV(host) {
+  return new Promise((resolve) => {
+    dns.resolveSrv(`_minecraft._tcp.${host}`, (err, records) => {
+      if (err || !records || records.length === 0) {
+        console.log('[DNS] Nincs SRV rekord, a megadott host/port használata.');
+        resolve({ host, port: MC_PORT });
+      } else {
+        const record = records[0];
+        console.log(`[DNS] SRV rekord megtalálva: ${record.name}:${record.port}`);
+        resolve({ host: record.name, port: record.port });
+      }
+    });
+  });
+}
+
+let bot = null;
+
+async function createBotWithProxy() {
+  // SRV rekord feloldása
+  const target = await resolveSRV(MC_HOST);
+  console.log(`[BOT] Cél: ${target.host}:${target.port}`);
+
   if (!PROXY.enabled) {
     console.log('[PROXY] Kikapcsolva, közvetlen kapcsolódás...');
     return mineflayer.createBot({
-      host: MC_HOST,
-      port: MC_PORT,
+      host: target.host,
+      port: target.port,
       username: 'cipopucolo112',
       auth: 'offline',
       version: '1.21.9',
       viewDistance: 2,
-      fakeHost: MC_HOST,
-        connect: (client) => { /* ... */ }
+      fakeHost: MC_HOST
     });
   }
 
@@ -44,7 +64,7 @@ function createBotWithProxy() {
     auth: 'offline',
     version: '1.21.9',
     viewDistance: 2,
-    // A mineflayer a connect visszahíváson keresztül várja a socketet
+    fakeHost: MC_HOST,  // <-- fontos: a szerver a helyes hostnevet lássa
     connect: (client) => {
       SocksClient.createConnection({
         proxy: {
@@ -56,8 +76,8 @@ function createBotWithProxy() {
         },
         command: 'connect',
         destination: {
-          host: MC_HOST,
-          port: MC_PORT
+          host: target.host,  // <-- SRV által feloldott valódi host
+          port: target.port    // <-- SRV által feloldott valódi port
         }
       })
         .then(({ socket }) => {
@@ -67,13 +87,10 @@ function createBotWithProxy() {
         })
         .catch((err) => {
           console.error('[PROXY] Hiba a SOCKS kapcsolat létrehozásakor:', err.message);
-          // A bot így nem tud csatlakozni, de legalább nem néma a hiba
         });
     }
   });
 }
-
-const bot = createBotWithProxy();
 
 // HTTP szerver
 const PORT = process.env.PORT || 3000;
@@ -107,42 +124,51 @@ server.listen(PORT, () => {
   );
 });
 
-// ===== Bot események =====
-bot.once('spawn', () => console.log('[BOT] Csatlakozott a szerverhez!'));
-bot.on('error', (err) => console.log('[BOT HIBA]', err.message || err));
-bot.on('kicked', (reason) => {
-  let szoveg = reason;
+// ===== Bot indítás és események =====
+async function startBot() {
   try {
-    szoveg = typeof reason === 'string' ? reason : JSON.stringify(reason);
-  } catch (e) {
-    /* ignore */
+    bot = await createBotWithProxy();
+  } catch (err) {
+    console.error('[BOT] Indítási hiba:', err.message);
+    setTimeout(startBot, 10000);
+    return;
   }
-  console.log('[BOT KICK]', szoveg);
-});
-bot.on('end', (reason) => console.log('[BOT] Lecsatlakozott. Ok:', reason));
 
-bot.on('end', (reason) => {
-  console.log('[BOT] Lecsatlakozott. Ok:', reason);
-  // Újracsatlakozás 10 másodperc múlva
-  setTimeout(() => {
-    console.log('[BOT] Újracsatlakozás...');
-    createBotWithProxy();
-  }, 10000);
-});
+  bot.once('spawn', () => console.log('[BOT] Csatlakozott a szerverhez!'));
 
-bot.on('chat', (username, message) => {
-  console.log(`[CHAT] ${username}: ${message}`);
-  if (username !== bot.username) {
-    io.emit('bot-uzenet', `${username}: ${message}`);
-  }
-});
+  bot.on('error', (err) => console.log('[BOT HIBA]', err.message || err));
 
-bot.on('message', (jsonMsg) => {
-  // Csak akkor naplózzuk, ha a bot már spawnolt (különben sok "Connecting..." üzenet jön)
-  if (bot.entity) {
-    console.log(`[MSG] ${jsonMsg.toString()}`);
-  }
-});
+  bot.on('kicked', (reason) => {
+    let szoveg = reason;
+    try {
+      szoveg = typeof reason === 'string' ? reason : JSON.stringify(reason);
+    } catch (e) { /* ignore */ }
+    console.log('[BOT KICK]', szoveg);
+  });
+
+  bot.on('end', (reason) => {
+    console.log('[BOT] Lecsatlakozott. Ok:', reason);
+    setTimeout(() => {
+      console.log('[BOT] Újracsatlakozás...');
+      startBot();
+    }, 10000);
+  });
+
+  bot.on('chat', (username, message) => {
+    console.log(`[CHAT] ${username}: ${message}`);
+    if (username !== bot.username) {
+      io.emit('bot-uzenet', `${username}: ${message}`);
+    }
+  });
+
+  bot.on('message', (jsonMsg) => {
+    if (bot.entity) {
+      console.log(`[MSG] ${jsonMsg.toString()}`);
+    }
+  });
+}
+
+startBot();
 
 // ===== Socket.io események =====
 io.on('connection', (socket) => {
@@ -150,11 +176,12 @@ io.on('connection', (socket) => {
 
   socket.on('chat', (uzenet) => {
     if (typeof uzenet !== 'string' || !uzenet.trim()) return;
-    bot.chat(uzenet);
+    if (bot) bot.chat(uzenet);
     console.log(`[WEB-CHAT] ${uzenet}`);
   });
 
   socket.on('move', (irany) => {
+    if (!bot) return;
     if (['forward', 'back', 'left', 'right', 'jump'].includes(irany)) {
       bot.setControlState(irany, true);
       console.log(`[WEB-MOVE] ${irany}`);
@@ -162,6 +189,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('stop', () => {
+    if (!bot) return;
     ['forward', 'back', 'left', 'right', 'jump'].forEach((irany) => {
       bot.setControlState(irany, false);
     });
@@ -169,7 +197,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('info', () => {
-    if (!bot.entity || !bot.game) {
+    if (!bot || !bot.entity || !bot.game) {
       socket.emit('bot-info', { hiba: 'A bot még nem csatlakozott teljesen' });
       return;
     }
