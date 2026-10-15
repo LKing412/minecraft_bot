@@ -42,12 +42,17 @@
       font-family: monospace;
       color: #cccccc;
       border: 1px solid #333;
+      max-height: 400px;
+      overflow-y: auto;
     }
     .sor { margin: 4px 0; }
     .sajat { color: #00ff88; }
     .hiba { color: #ff5555; }
+    .info { color: #88ccff; }
     .mozgas { background-color: #444; color: #fff; }
     .mozgas:hover { background-color: #666; }
+    .info-gomb { background-color: #88ccff; color: #000; }
+    .info-gomb:hover { background-color: #66aadd; }
   </style>
 </head>
 <body>
@@ -64,6 +69,9 @@
   <button class="mozgas" onclick="mozgas('right')">Jobbra</button>
   <button class="mozgas" onclick="mozgas('jump')">Ugrás</button>
   <button class="mozgas" onclick="stopMozgas()">Stop</button>
+
+  <h3>Információk</h3>
+  <button class="info-gomb" onclick="kerdezz()">Pozíció és világ adatok</button>
 
   <h3>Napló</h3>
   <div id="log"></div>
@@ -98,9 +106,30 @@
       naplo('[MOZGÁS] stop');
     }
 
+    function kerdezz() {
+      socket.emit('info');
+      naplo('[KÉRÉS] Pozíció és világ adatok...', 'info');
+    }
+
     // A bot üzeneteinek megjelenítése
     socket.on('bot-uzenet', (szoveg) => {
       naplo('[BOT] ' + szoveg);
+    });
+
+    // A bot információinak megjelenítése
+    socket.on('bot-info', (adatok) => {
+      naplo('--- BOT INFORMÁCIÓK ---', 'info');
+      naplo('Pozíció: X=' + adatok.x.toFixed(2) + ' Y=' + adatok.y.toFixed(2) + ' Z=' + adatok.z.toFixed(2), 'info');
+      naplo('Nézési irány (yaw): ' + adatok.yaw.toFixed(2), 'info');
+      naplo('Nézési irány (pitch): ' + adatok.pitch.toFixed(2), 'info');
+      naplo('Élet: ' + adatok.health, 'info');
+      naplo('Éhség: ' + adatok.food, 'info');
+      naplo('Játékmód: ' + adatok.gameMode, 'info');
+      naplo('Dimenzió: ' + adatok.dimension, 'info');
+      naplo('Idő: ' + adatok.time, 'info');
+      naplo('Eső: ' + (adatok.rain ? 'igen' : 'nem'), 'info');
+      naplo('Villámlás: ' + (adatok.thunder ? 'igen' : 'nem'), 'info');
+      naplo('---', 'info');
     });
 
     // Enter lenyomására küldjön
