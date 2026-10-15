@@ -45,10 +45,9 @@ bot.on('error', (err) => console.log('Hiba:', err));
 bot.on('kicked', (reason) => console.log('Kirúgva:', reason));
 bot.on('end', () => console.log('Bot lecsatlakozott a szerverről.'));
 
-// Chat üzenetek figyelése (a szerverről jövő üzenetek)
+// Chat üzenetek figyelése
 bot.on('chat', (username, message) => {
   console.log(`[CHAT] ${username}: ${message}`);
-  // Ha nem a bot írta, küldjük a weboldalra
   if (username !== bot.username) {
     io.emit('bot-uzenet', `${username}: ${message}`);
   }
@@ -84,5 +83,32 @@ io.on('connection', (socket) => {
       bot.setControlState(irany, false);
     });
     console.log('[WEB-MOVE] stop');
+  });
+
+  // Pozíció és világ adatok lekérése
+  socket.on('info', () => {
+    if (!bot.entity) {
+      socket.emit('bot-info', { hiba: 'A bot még nem csatlakozott' });
+      return;
+    }
+
+    const pos = bot.entity.position;
+    const adatok = {
+      x: pos.x,
+      y: pos.y,
+      z: pos.z,
+      yaw: bot.entity.yaw,
+      pitch: bot.entity.pitch,
+      health: bot.health,
+      food: bot.food,
+      gameMode: bot.game.gameMode,
+      dimension: bot.game.dimension,
+      time: bot.time.timeOfDay,
+      rain: bot.isRaining,
+      thunder: bot.thunderState > 0
+    };
+
+    console.log('[INFO]', adatok);
+    socket.emit('bot-info', adatok);
   });
 });
