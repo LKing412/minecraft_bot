@@ -3,15 +3,62 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { Server } = require('socket.io');
+const { SocksClient } = require('socks');
 
-// Minecraft bot létrehozása
-const bot = mineflayer.createBot({
-  host: 'Mate1019.aternos.me',
-  port: 19275,
-  username: 'cipopucolo112',
-  auth: 'offline',
-  version: '1.21.9'
-});
+// ===== PROXY BEÁLLÍTÁSOK =====
+const PROXY = {
+  enabled: true,              // false → proxy kikapcsolása
+  host: '127.0.0.1',          // SOCKS proxy címe
+  port: 1080,                 // SOCKS proxy portja (pl. 1080, 9050 Tor)
+  type: 5,                    // 4 vagy 5 (SOCKS4 / SOCKS5)
+  userId: undefined,          // SOCKS5 esetén ha kell
+  password: undefined         // SOCKS5 esetén ha kell
+};
+// =============================
+
+// Minecraft szerver adatai
+const MC_HOST = 'Mate1019.aternos.me';
+const MC_PORT = 19275;
+
+// Proxy kapcsolat létrehozása és a bot indítása
+function createBotWithProxy() {
+  if (!PROXY.enabled) {
+    // Proxy nélkül
+    return mineflayer.createBot({
+      host: MC_HOST,
+      port: MC_PORT,
+      username: 'cipopucolo112',
+      auth: 'offline',
+      version: '1.21.9'
+    });
+  }
+
+  // Proxy-val: először létrehozzuk a SOCKS kapcsolatot a Minecraft szerver felé
+  const socketPromise = SocksClient.createConnection({
+    proxy: {
+      host: PROXY.host,
+      port: PROXY.port,
+      type: PROXY.type,
+      userId: PROXY.userId,
+      password: PROXY.password
+    },
+    command: 'connect',
+    destination: {
+      host: MC_HOST,
+      port: MC_PORT
+    }
+  });
+
+  return mineflayer.createBot({
+    username: 'cipopucolo112',
+    auth: 'offline',
+    version: '1.21.9',
+    // A mineflayer átveszi ezt a socketet a proxy-n keresztül
+    connect: () => socketPromise.then(({ socket }) => socket)
+  });
+}
+
+const bot = createBotWithProxy();
 
 // HTTP szerver
 const PORT = process.env.PORT || 3000;
@@ -32,11 +79,11 @@ const server = http.createServer((req, res) => {
   }
 });
 
-// Socket.io
 const io = new Server(server);
 
 server.listen(PORT, () => {
   console.log(`HTTP szerver fut a ${PORT} porton`);
+  console.log(`Proxy: ${PROXY.enabled ? PROXY.host + ':' + PROXY.port + ' (SOCKS' + PROXY.type + ')' : 'kikapcsolva'}`);
 });
 
 // Bot események
@@ -45,7 +92,6 @@ bot.on('error', (err) => console.log('Hiba:', err));
 bot.on('kicked', (reason) => console.log('Kirúgva:', reason));
 bot.on('end', () => console.log('Bot lecsatlakozott a szerverről.'));
 
-// Chat üzenetek figyelése
 bot.on('chat', (username, message) => {
   console.log(`[CHAT] ${username}: ${message}`);
   if (username !== bot.username) {
@@ -53,23 +99,18 @@ bot.on('chat', (username, message) => {
   }
 });
 
-// Rendszerüzenetek figyelése
 bot.on('message', (jsonMsg) => {
-  const szoveg = jsonMsg.toString();
-  console.log(`[MSG] ${szoveg}`);
+  console.log(`[MSG] ${jsonMsg.toString()}`);
 });
 
-// WebSocket kapcsolat
 io.on('connection', (socket) => {
   console.log('Weboldal csatlakozott');
 
-  // Chat üzenet küldése
   socket.on('chat', (uzenet) => {
     bot.chat(uzenet);
     console.log(`[WEB-CHAT] ${uzenet}`);
   });
 
-  // Mozgatás
   socket.on('move', (irany) => {
     if (['forward', 'back', 'left', 'right', 'jump'].includes(irany)) {
       bot.setControlState(irany, true);
@@ -77,7 +118,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Mozgatás leállítása
   socket.on('stop', () => {
     ['forward', 'back', 'left', 'right', 'jump'].forEach((irany) => {
       bot.setControlState(irany, false);
@@ -85,7 +125,6 @@ io.on('connection', (socket) => {
     console.log('[WEB-MOVE] stop');
   });
 
-  // Pozíció és világ adatok lekérése
   socket.on('info', () => {
     if (!bot.entity) {
       socket.emit('bot-info', { hiba: 'A bot még nem csatlakozott' });
@@ -94,9 +133,7 @@ io.on('connection', (socket) => {
 
     const pos = bot.entity.position;
     const adatok = {
-      x: pos.x,
-      y: pos.y,
-      z: pos.z,
+      x: pos.x, y: pos.y, z: pos.z,
       yaw: bot.entity.yaw,
       pitch: bot.entity.pitch,
       health: bot.health,
