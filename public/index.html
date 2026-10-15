@@ -6,15 +6,16 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 700px;
+      max-width: 900px;
       margin: 40px auto;
       padding: 20px;
       background-color: #000000;
       color: #ffffff;
     }
     h1 { color: #00ff88; }
+    h3 { color: #88ccff; margin-top: 24px; }
     input {
-      width: 70%;
+      width: 60%;
       padding: 10px;
       font-size: 16px;
       background-color: #1a1a1a;
@@ -23,16 +24,17 @@
       border-radius: 4px;
     }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
+      padding: 8px 14px;
+      font-size: 14px;
       cursor: pointer;
       background-color: #00ff88;
       color: #000000;
       border: none;
       border-radius: 4px;
-      margin: 4px;
+      margin: 3px;
     }
     button:hover { background-color: #00cc6a; }
+    button:disabled { background-color: #333; color: #666; cursor: not-allowed; }
     #log {
       margin-top: 20px;
       padding: 15px;
@@ -49,29 +51,92 @@
     .sajat { color: #00ff88; }
     .hiba { color: #ff5555; }
     .info { color: #88ccff; }
+    .halal { color: #ff2222; font-weight: bold; }
     .mozgas { background-color: #444; color: #fff; }
     .mozgas:hover { background-color: #666; }
     .info-gomb { background-color: #88ccff; color: #000; }
     .info-gomb:hover { background-color: #66aadd; }
+    .akcio { background-color: #ff8844; color: #000; }
+    .akcio:hover { background-color: #dd6622; }
+    .forgas { background-color: #aa66ff; color: #fff; }
+    .forgas:hover { background-color: #8844dd; }
+    .slot { background-color: #666; color: #fff; width: 40px; }
+    .slot:hover { background-color: #888; }
+    .slot.aktiv { background-color: #ffcc00; color: #000; }
+    .statusz {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 4px;
+      background: #1a1a1a;
+      border: 1px solid #333;
+      margin-right: 8px;
+      font-size: 14px;
+    }
+    .grid-forgas {
+      display: grid;
+      grid-template-columns: repeat(3, 70px);
+      gap: 4px;
+      justify-content: start;
+    }
+    .grid-forgas button { width: 70px; height: 40px; margin: 0; }
   </style>
 </head>
 <body>
   <h1>Minecraft Bot vezérlő</h1>
 
+  <div>
+    <span class="statusz">❤ Élet: <b id="statusz-elet">?</b></span>
+    <span class="statusz">🍗 Éhség: <b id="statusz-ehseg">?</b></span>
+    <span class="statusz">📍 <b id="statusz-poz">?</b></span>
+    <span class="statusz">🎮 <b id="statusz-mod">?</b></span>
+  </div>
+
   <h3>Chat üzenet</h3>
   <input type="text" id="uzenet" placeholder="Írd be az üzenetet...">
   <button onclick="kuldChat()">Küldés</button>
 
-  <h3>Mozgatás</h3>
+  <h3>Mozgatás (folyamatos)</h3>
   <button class="mozgas" onclick="mozgas('forward')">Előre</button>
   <button class="mozgas" onclick="mozgas('back')">Hátra</button>
   <button class="mozgas" onclick="mozgas('left')">Balra</button>
   <button class="mozgas" onclick="mozgas('right')">Jobbra</button>
   <button class="mozgas" onclick="mozgas('jump')">Ugrás</button>
+  <button class="mozgas" onclick="mozgas('sneak')">Lopakodás</button>
+  <button class="mozgas" onclick="mozgas('sprint')">Sprint</button>
   <button class="mozgas" onclick="stopMozgas()">Stop</button>
+
+  <h3>Forgás (8 irány)</h3>
+  <div class="grid-forgas">
+    <button class="forgas" onclick="forgas('north-west')">↖ ÉNy</button>
+    <button class="forgas" onclick="forgas('north')">↑ Észak</button>
+    <button class="forgas" onclick="forgas('north-east')">↗ ÉK</button>
+    <button class="forgas" onclick="forgas('west')">← Nyugat</button>
+    <button class="forgas" onclick="forgas('reset')">⟳ Alap</button>
+    <button class="forgas" onclick="forgas('east')">→ Kelet</button>
+    <button class="forgas" onclick="forgas('south-west')">↙ DNy</button>
+    <button class="forgas" onclick="forgas('south')">↓ Dél</button>
+    <button class="forgas" onclick="forgas('south-east')">↘ DK</button>
+  </div>
+  <br>
+  <button class="forgas" onclick="forgas('up')">⬆ Fel (pitch)</button>
+  <button class="forgas" onclick="forgas('down')">⬇ Le (pitch)</button>
+  <button class="forgas" onclick="forgas('pitch-reset')">⟳ Pitch reset</button>
+
+  <h3>Akciók</h3>
+  <button class="akcio" onclick="akcio('attack')">⚔ Ütés</button>
+  <button class="akcio" onclick="akcio('use')">✋ Használat</button>
+  <button class="akcio" onclick="akcio('jump-attack')">⚔ Ugrás + Ütés</button>
+  <button class="akcio" onclick="akcio('drop')">🗑 Eldobás</button>
+  <button class="akcio" onclick="akcio('swap')">🔄 Kézcsere</button>
+
+  <h3>Hotbar slot (1-9)</h3>
+  <div id="slotok"></div>
 
   <h3>Információk</h3>
   <button class="info-gomb" onclick="kerdezz()">Pozíció és világ adatok</button>
+  <button class="info-gomb" onclick="kerdezz('inventory')">Inventory</button>
+  <button class="info-gomb" onclick="kerdezz('players')">Játékosok listája</button>
+  <button class="info-gomb" onclick="kerdezz('entities')">Közeli entitások</button>
 
   <h3>Napló</h3>
   <div id="log"></div>
@@ -80,9 +145,13 @@
   <script>
     const socket = io();
     const log = document.getElementById('log');
+    let aktivSlot = 0;
 
     function naplo(szoveg, osztaly) {
-      log.innerHTML += `<div class="sor ${osztaly || ''}">${szoveg}</div>`;
+      const d = document.createElement('div');
+      d.className = 'sor ' + (osztaly || '');
+      d.textContent = szoveg;
+      log.appendChild(d);
       log.scrollTop = log.scrollHeight;
     }
 
@@ -106,18 +175,90 @@
       naplo('[MOZGÁS] stop');
     }
 
-    function kerdezz() {
-      socket.emit('info');
-      naplo('[KÉRÉS] Pozíció és világ adatok...', 'info');
+    function forgas(irany) {
+      socket.emit('rotate', irany);
+      naplo('[FORGÁS] ' + irany, 'info');
     }
 
-    // A bot üzeneteinek megjelenítése
-    socket.on('bot-uzenet', (szoveg) => {
-      naplo('[BOT] ' + szoveg);
+    function akcio(tipus) {
+      socket.emit('action', tipus);
+      naplo('[AKCIÓ] ' + tipus, 'info');
+    }
+
+    function valtSlot(n) {
+      socket.emit('slot', n);
+      aktivSlot = n;
+      naplo('[SLOT] ' + (n + 1), 'info');
+      document.querySelectorAll('.slot').forEach((b, i) => {
+        b.classList.toggle('aktiv', i === n);
+      });
+    }
+
+    function kerdezz(tipus) {
+      socket.emit('info', tipus || 'world');
+      naplo('[KÉRÉS] ' + (tipus || 'world') + ' adatok...', 'info');
+    }
+
+    // Slot gombok generálása
+    const slotDiv = document.getElementById('slotok');
+    for (let i = 0; i < 9; i++) {
+      const b = document.createElement('button');
+      b.className = 'slot';
+      b.textContent = i + 1;
+      b.onclick = () => valtSlot(i);
+      slotDiv.appendChild(b);
+    }
+    document.querySelectorAll('.slot')[0].classList.add('aktiv');
+
+    // ===== Bot események =====
+    socket.on('bot-uzenet', (szoveg) => naplo('[BOT] ' + szoveg));
+    socket.on('bot-chat', (data) => naplo('[CHAT] ' + data.username + ': ' + data.message));
+    socket.on('bot-halal', (data) => naplo('[HALÁL] ' + data.uzenet, 'halal'));
+    socket.on('bot-spawn', (data) => naplo('[SPAWN] ' + data.uzenet, 'info'));
+    socket.on('bot-kick', (data) => naplo('[KICK] ' + data.uzenet, 'hiba'));
+    socket.on('bot-hiba', (data) => naplo('[HIBA] ' + data.uzenet, 'hiba'));
+    socket.on('bot-health', (data) => {
+      document.getElementById('statusz-elet').textContent = data.health;
+      document.getElementById('statusz-ehseg').textContent = data.food;
+    });
+    socket.on('bot-statusz', (data) => {
+      document.getElementById('statusz-poz').textContent =
+        data.x.toFixed(0) + ', ' + data.y.toFixed(0) + ', ' + data.z.toFixed(0);
+      document.getElementById('statusz-mod').textContent = data.gameMode || '?';
     });
 
-    // A bot információinak megjelenítése
     socket.on('bot-info', (adatok) => {
+      if (adatok.hiba) { naplo('[INFO HIBA] ' + adatok.hiba, 'hiba'); return; }
+
+      if (adatok.tipus === 'inventory') {
+        naplo('--- INVENTORY ---', 'info');
+        if (!adatok.slotok.length) naplo('(üres)', 'info');
+        adatok.slotok.forEach(s => {
+          naplo(`  Slot ${s.slot}: ${s.nev} x${s.db}`, 'info');
+        });
+        naplo('Kiválasztott slot: ' + (adatok.aktivSlot + 1), 'info');
+        naplo('---', 'info');
+        return;
+      }
+
+      if (adatok.tipus === 'players') {
+        naplo('--- JÁTÉKOSOK ---', 'info');
+        adatok.jatekosok.forEach(p => naplo('  ' + p, 'info'));
+        naplo('---', 'info');
+        return;
+      }
+
+      if (adatok.tipus === 'entities') {
+        naplo('--- KÖZELI ENTITÁSOK ---', 'info');
+        if (!adatok.entitasok.length) naplo('(nincs)', 'info');
+        adatok.entitasok.forEach(e => {
+          naplo(`  ${e.nev} @ ${e.tavolsag}m (${e.x}, ${e.y}, ${e.z})`, 'info');
+        });
+        naplo('---', 'info');
+        return;
+      }
+
+      // world info
       naplo('--- BOT INFORMÁCIÓK ---', 'info');
       naplo('Pozíció: X=' + adatok.x.toFixed(2) + ' Y=' + adatok.y.toFixed(2) + ' Z=' + adatok.z.toFixed(2), 'info');
       naplo('Nézési irány (yaw): ' + adatok.yaw.toFixed(2), 'info');
@@ -129,10 +270,11 @@
       naplo('Idő: ' + adatok.time, 'info');
       naplo('Eső: ' + (adatok.rain ? 'igen' : 'nem'), 'info');
       naplo('Villámlás: ' + (adatok.thunder ? 'igen' : 'nem'), 'info');
+      naplo('XP szint: ' + adatok.xpLevel, 'info');
+      naplo('Kiválasztott slot: ' + (adatok.aktivSlot + 1), 'info');
       naplo('---', 'info');
     });
 
-    // Enter lenyomására küldjön
     document.getElementById('uzenet').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') kuldChat();
     });
