@@ -119,6 +119,15 @@ bot.on('kicked', (reason) => {
 });
 bot.on('end', (reason) => console.log('[BOT] Lecsatlakozott. Ok:', reason));
 
+bot.on('end', (reason) => {
+  console.log('[BOT] Lecsatlakozott. Ok:', reason);
+  // Újracsatlakozás 10 másodperc múlva
+  setTimeout(() => {
+    console.log('[BOT] Újracsatlakozás...');
+    createBotWithProxy();
+  }, 10000);
+});
+
 bot.on('chat', (username, message) => {
   console.log(`[CHAT] ${username}: ${message}`);
   if (username !== bot.username) {
