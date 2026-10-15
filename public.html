@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Bot vezérlő</title>
+</head>
+<body>
+  <h1>Minecraft Bot vezérlő</h1>
+  <input type="text" id="uzenet" placeholder="Írd be: chat valami">
+  <button onclick="kuld()">Küldés</button>
+  <div id="log"></div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+    const log = document.getElementById('log');
+
+    function kuld() {
+      const input = document.getElementById('uzenet');
+      const szoveg = input.value.trim();
+      if (szoveg.startsWith('chat ')) {
+        socket.emit('chat', szoveg.slice(5));
+        log.innerHTML += `<p>[KÜLDTED] ${szoveg}</p>`;
+        input.value = '';
+      } else {
+        log.innerHTML += `<p style="color:red">A parancs "chat " előtaggal kezdődjön!</p>`;
+      }
+    }
+  </script>
+</body>
+</html>
