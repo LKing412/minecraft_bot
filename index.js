@@ -8,7 +8,7 @@ const dns = require('dns');
 
 // ===== PROXY BEÁLLÍTÁSOK =====
 const PROXY = {
-  enabled: true,
+  enabled: false,
   host: '199.102.45.168',
   port: 9002,
   type: 5,
